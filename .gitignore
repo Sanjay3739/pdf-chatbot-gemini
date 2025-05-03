@@ -1,0 +1,48 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+.venv/
+env/
+venv/
+.myenv/
+myenv/
+# IDE files
+.vscode/
+.idea/
+
+# Jupyter Notebooks checkpoints
+.ipynb_checkpoints
+
+# Streamlit cache and logs
+.streamlit/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# dotenv and credentials
+.env
+*.env
+
+# Log files
+*.log
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# AWS credentials
+.aws/
+
+# PDF uploads (if stored locally)
+uploads/
+
+# Misc
+*.bak
+
+# Faiss
+faiss_index/
