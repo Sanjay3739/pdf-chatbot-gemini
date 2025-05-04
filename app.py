@@ -1,85 +1,103 @@
 import streamlit as st
 from streamlit_chat import message
+from streamlit_modal import Modal
 from utils.auth import check_auth, login_form
 from utils.pdf_utils import process_multiple_pdfs
 from utils.vector_store import get_vector_store, search_similar_chunks
 from utils.gemini_chat import get_gemini_response
 from utils.feedback import log_feedback
 
+# Set up the page configuration
 st.set_page_config(page_title="📄 PDF Chatbot", layout="wide")
 
-# ✅ Auth check
-if not check_auth():
-    login_form()
-    st.stop()
+# Initialize Modal for Document Summary
+modal = Modal(key="Demo Key", title="📄 Document Summary")
 
-st.markdown("""
-    <style>
-    .stChatMessage {
-        max-width: 700px !important;
-    }
-    .streamlit-expanderHeader {
-        font-size: 0.9rem !important;
-    }
-    button[kind="secondary"] {
-        padding: 0.25rem 0.6rem;
-        font-size: 0.8rem;
-        margin-right: 5px;
-    }
-    .st-emotion-cache-13na8ym   {
-        width: 500px !important;
-        word-wrap: break-word;
-    }
-</style>
-
-""", unsafe_allow_html=True)
-
-st.title("📄 Chat with your PDFs using Gemini")
-
-# ✅ Sidebar PDF upload
-st.sidebar.header("📂 Upload your PDFs")
-uploaded_pdfs = st.sidebar.file_uploader("Choose PDF files", type="pdf", accept_multiple_files=True)
-
-# ✅ Init session state
+# Session State Initialization (Ensure persistence across reruns)
 if "vector_store" not in st.session_state:
     st.session_state.vector_store = None
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "pending_query" not in st.session_state:
     st.session_state.pending_query = None
+if "pdf_chunks" not in st.session_state:
+    st.session_state.pdf_chunks = None
+if "uploaded_pdf_names" not in st.session_state:
+    st.session_state.uploaded_pdf_names = []
 
-# ✅ Process PDFs once
-if uploaded_pdfs and st.session_state.vector_store is None:
-    with st.spinner("Processing PDFs..."):
-        chunks = process_multiple_pdfs(uploaded_pdfs)
-        st.session_state.vector_store = get_vector_store(chunks)
-    st.success("PDFs processed. Start chatting!")
+# Authenticate the user
+def authenticate_user():
+    """Handle user authentication."""
+    if not check_auth():
+        login_form()
+        st.stop()
 
-# ✅ Display chat messages using fixed keys
-if st.session_state.vector_store:
-    for i, chat in enumerate(st.session_state.chat_history):
-        is_user = chat["role"] == "user"
-        message(chat["content"], is_user=is_user, key=f"chat_{i}")
+# Load Custom CSS
+def load_custom_css():
+    """Load custom CSS for styling."""
+    with open("styles/style.css") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-        if not is_user:
-            # ✅ Feedback buttons with 5px spacing (safe Streamlit layout)
-            with st.container():
-                col1, col2, spacer = st.columns([0.05, 0.05, 0.9])
-                with col1:
-                    if st.button("👍", key=f"pos_{i}"):
-                        log_feedback(chat["question"], chat["content"], "positive")
-                        st.toast("Thanks for your feedback!", icon="👍")
-                with col2:
-                    if st.button("👎", key=f"neg_{i}"):
-                        log_feedback(chat["question"], chat["content"], "negative")
-                        st.toast("We'll try to improve!", icon="🙏")
+# Handle PDF Upload
+def process_uploaded_pdfs(uploaded_pdfs):
+    """Process uploaded PDFs and convert them into chunks."""
+    if uploaded_pdfs:
+        uploaded_names = [pdf.name for pdf in uploaded_pdfs]
+        # Re-process only if new files are uploaded
+        if uploaded_names != st.session_state.uploaded_pdf_names:
+            with st.spinner("Processing new PDFs..."):
+                chunks = process_multiple_pdfs(uploaded_pdfs)
+                st.session_state.vector_store = get_vector_store(chunks)
+                st.session_state.pdf_chunks = chunks
+                # DO NOT reset chat history!
+                st.session_state.uploaded_pdf_names = uploaded_names
+            st.toast("PDFs processed. Start chatting!", icon="✅")
 
-            # ✅ Show Sources with 500px width (using custom class)
-            with st.expander(f"📄 Sources for this answer"):
-                for r in chat["sources"]:
-                    st.markdown(f"📄 **{r['source']}** | Page {r['page']}\n> {r['text'][:300]}...")
-            
-    # ✅ Chat input field
+# Generate Document Summary
+def generate_document_summary():
+    """Generate and display a semantic summary of the uploaded PDFs."""
+    if st.session_state.pdf_chunks:
+        full_text = "\n\n".join([chunk["text"] for chunk in st.session_state.pdf_chunks])
+        prompt = (
+            "Please generate a semantic summary of the following document. "
+            "Provide a TL;DR or section-wise breakdown if possible:\n\n"
+            f"{full_text[:8000]}"
+        )
+        summary = get_gemini_response(prompt, st.session_state.pdf_chunks)
+        if summary:
+            with modal.container():
+                st.markdown(summary)
+
+# Display Chatbot UI
+def display_chat_interface():
+    """Display the chat interface and handle user inputs."""
+    st.title("📄 Chat with your PDFs using Gemini")
+
+    # Display chat history
+    if st.session_state.vector_store:
+        for i, chat in enumerate(st.session_state.chat_history):
+            is_user = chat["role"] == "user"
+            message(chat["content"], is_user=is_user, key=f"chat_{i}")
+
+            if not is_user:
+                # Feedback buttons
+                with st.container():
+                    col1, col2, spacer = st.columns([0.05, 0.05, 0.9])
+                    with col1:
+                        if st.button("👍", key=f"pos_{i}"):
+                            log_feedback(chat["question"], chat["content"], "positive")
+                            st.toast("Thanks for your feedback!", icon="👍")
+                    with col2:
+                        if st.button("👎", key=f"neg_{i}"):
+                            log_feedback(chat["question"], chat["content"], "negative")
+                            st.toast("We'll try to improve!", icon="🙏")
+
+                # Show sources for the assistant's response
+                with st.expander(f"📄 Sources for this answer"):
+                    for r in chat["sources"]:
+                        st.markdown(f"📄 **{r['source']}** | Page {r['page']}\n> {r['text'][:300]}...")
+
+    # User input field
     query = st.chat_input("Ask a question...")
 
     # Step 1: Add user message and rerun
@@ -106,3 +124,30 @@ if st.session_state.vector_store:
 
         st.session_state.pending_query = None
         st.rerun()
+
+# Main execution flow
+def main():
+    """Main function to run the Streamlit app."""
+    # Authentication check
+    authenticate_user()
+
+    # Load custom CSS
+    load_custom_css()
+
+    # Sidebar PDF upload
+    st.sidebar.header("📂 Upload your PDFs")
+    uploaded_pdfs = st.sidebar.file_uploader("Choose PDF files", type="pdf", accept_multiple_files=True)
+
+    # Process uploaded PDFs
+    process_uploaded_pdfs(uploaded_pdfs)
+
+    # Generate Summary Button
+    if uploaded_pdfs and st.sidebar.button("🧠 Generate Summary"):
+        generate_document_summary()
+
+    # Display the chat interface
+    display_chat_interface()
+
+# Run the app
+if __name__ == "__main__":
+    main()

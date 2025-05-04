@@ -1,4 +1,5 @@
 streamlit
+streamlit_chat
 PyMuPDF
 faiss-cpu
 sentence-transformers
@@ -6,3 +7,5 @@ google-generativeai
 speechrecognition
 pyaudio
 python-dotenv
+streamlit-javascript
+streamlit-modal

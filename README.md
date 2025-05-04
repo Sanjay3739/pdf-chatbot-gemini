@@ -54,6 +54,8 @@ pip install -r requirements.txt
 ```bash
 GEMINI_API_KEY=your_google_gemini_key
 GEMINI_MODEL=your_gemini_model_name
+USER_NAME=your_name
+PASSWORD=your_password
 ```
 
 ### 5️⃣ Project Structure Overview

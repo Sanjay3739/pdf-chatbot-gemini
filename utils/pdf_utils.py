@@ -1,5 +1,6 @@
 import fitz  # PyMuPDF
 
+# ✅ Extracts text from a PDF file and splits it into chunks of specified size
 def extract_text_chunks(pdf_file, source_name, chunk_size=500):
     doc = fitz.open(stream=pdf_file.read(), filetype="pdf")
     chunks = []
@@ -10,6 +11,7 @@ def extract_text_chunks(pdf_file, source_name, chunk_size=500):
             chunks.append({"text": chunk_text, "page": i+1, "source": source_name})
     return chunks
 
+# ✅ Process multiple PDF files and extract chunks from each
 def process_multiple_pdfs(pdf_files):
     all_chunks = []
     for pdf in pdf_files:

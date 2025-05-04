@@ -1,0 +1,15 @@
+.stChatMessage {
+    max-width: 700px !important;
+}
+.streamlit-expanderHeader {
+    font-size: 0.9rem !important;
+}
+button[kind="secondary"] {
+    padding: 0.25rem 0.6rem;
+    font-size: 0.8rem;
+    margin-right: 5px;
+}
+.st-emotion-cache-13na8ym {
+    width: 500px !important;
+    word-wrap: break-word;
+}
