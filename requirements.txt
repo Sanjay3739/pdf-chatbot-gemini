@@ -9,3 +9,4 @@ pyaudio
 python-dotenv
 streamlit-javascript
 streamlit-modal
+spacy

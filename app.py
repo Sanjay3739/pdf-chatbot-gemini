@@ -57,16 +57,28 @@ def process_uploaded_pdfs(uploaded_pdfs):
 def generate_document_summary():
     """Generate and display a semantic summary of the uploaded PDFs."""
     if st.session_state.pdf_chunks:
+        # Combine all text from chunks into a single string
         full_text = "\n\n".join([chunk["text"] for chunk in st.session_state.pdf_chunks])
-        prompt = (
-            "Please generate a semantic summary of the following document. "
-            "Provide a TL;DR or section-wise breakdown if possible:\n\n"
-            f"{full_text[:8000]}"
-        )
-        summary = get_gemini_response(prompt, st.session_state.pdf_chunks)
+
+        # Construct a better structured prompt
+        prompt = f"""
+                You are an expert summarizer. The user has uploaded a document and wants a clear summary of its contents.
+
+                Please provide a semantic summary of the following text. Use bullet points or a section-wise breakdown if possible.
+                If the document is long, prioritize summarizing key themes, structure, and important details.
+
+                Document Content:
+                {full_text[:8000]}  # Keep prompt within Gemini's token limits
+                """
+
+        # Call Gemini with the updated prompt
+        summary = get_gemini_response(prompt)
+
+        # Display the summary in a modal
         if summary:
             with modal.container():
                 st.markdown(summary)
+
 
 # Display Chatbot UI
 def display_chat_interface():
@@ -113,7 +125,29 @@ def display_chat_interface():
     if st.session_state.pending_query:
         with st.spinner("Thinking..."):
             results = search_similar_chunks(st.session_state.pending_query, st.session_state.vector_store)
-            response = get_gemini_response(st.session_state.pending_query, results)
+
+            # Format the chunks nicely
+            formatted_chunks = "\n\n".join([
+                f"Source: {chunk['source']} | Page: {chunk['page']}\n{chunk['text']}"
+                for chunk in results
+            ])
+
+            # Construct a detailed prompt
+            prompt = f"""
+            You are an expert assistant helping users understand a PDF document.
+
+            Based on the following relevant excerpts from the PDF, answer the user's question as accurately and helpfully as possible.
+
+            User's Question: {st.session_state.pending_query}
+
+            Relevant Chunks:
+            {formatted_chunks}
+
+            Please provide a clear and concise answer. Cite sources if helpful.
+            """
+
+            # Pass the custom prompt to Gemini
+            response = get_gemini_response(prompt)
 
         st.session_state.chat_history.append({
             "role": "assistant",

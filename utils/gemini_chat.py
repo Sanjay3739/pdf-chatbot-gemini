@@ -20,12 +20,10 @@ genai.configure(api_key=api_key)
 model = genai.GenerativeModel(model_name)
 
 # ✅ Define response function
-def get_gemini_response(query, chunks):
+def get_gemini_response(prompt):
     """
     Generates a response from the Gemini model using the provided query and context.
     """
-    context = "\n".join([c["text"] for c in chunks])  # Combine context chunks into a single string
-    prompt = f"Context:\n{context}\n\nQuestion: {query}\nAnswer:"
     
     try:
         response = model.generate_content(prompt)  # Get response from Gemini model
